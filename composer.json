@@ -49,7 +49,7 @@
         "nesbot/carbon": "^3.8.4"
     },
     "require-dev": {
-        "orchestra/testbench": "^8.17 | ^9.0",
+        "orchestra/testbench": "^8.17 | ^9.0 | ^10.0",
         "phpstan/phpstan": "^1.10",
         "laravel/pint": "^1.13",
         "pestphp/pest": "^2.28",
