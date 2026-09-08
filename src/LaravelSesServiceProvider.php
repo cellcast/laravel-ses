@@ -74,7 +74,16 @@ class LaravelSesServiceProvider extends ServiceProvider
 
         Mail::extend('laravel-ses', function (array $config = []) {
 
-            $sesClient = Container::getInstance()->make(SesV2Client::class);
+            // A contextless make() isn't covered by the contextual bindings
+            // above, and SesV2Client cannot be built without its args array.
+            $sesClient = new SesV2Client([
+                'credentials' => [
+                    'key' => config('services.ses.key'),
+                    'secret' => config('services.ses.secret'),
+                ],
+                'region' => config('services.ses.region'),
+                'version' => 'latest',
+            ]);
 
             return new LaravelSesTransport($sesClient);
         });
