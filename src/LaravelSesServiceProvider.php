@@ -4,7 +4,6 @@ namespace OpeTech\LaravelSes;
 
 use Aws\SesV2\SesV2Client;
 use Aws\Sns\SnsClient;
-use Illuminate\Container\Container;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use OpeTech\LaravelSes\Actions\Sns\CreateConfigurationSet;
