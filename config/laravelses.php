@@ -3,6 +3,12 @@
 return [
 
     /**
+     * Verify the signature of incoming SNS notifications before acting on them.
+     * Only disable this in tests, where payloads are hand-built and unsigned.
+     */
+    'aws_sns_validator' => env('SES_SNS_VALIDATOR', true),
+
+    /**
      * Prefixed added to your AWS resources. This is so you can have multiple SES configurations in the same AWS account.
      */
     'prefix' => 'laravel-ses',

@@ -14,7 +14,7 @@ class TestCase extends \Orchestra\Testbench\TestCase
 
     protected function getEnvironmentSetUp($app)
     {
-        //makes errors much eaiser to see in the CLI when testing
+        // makes errors much eaiser to see in the CLI when testing
         $app->make('Illuminate\Contracts\Debug\ExceptionHandler')->renderable(function (Throwable $e) {
             return throw $e;
         });
@@ -24,6 +24,9 @@ class TestCase extends \Orchestra\Testbench\TestCase
     {
         tap($app['config'], function (Repository $config) {
             $config->set('database.default', 'testing');
+
+            // hand-built SNS payloads cannot carry a real signature
+            $config->set('laravelses.aws_sns_validator', false);
 
             $config->set('mail.mailers.laravel-ses', [
                 'transport' => 'laravel-ses',
