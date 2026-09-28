@@ -3,6 +3,7 @@
 namespace OpeTech\LaravelSes\Transport;
 
 use Aws\Exception\AwsException;
+use Aws\Ses\SesClient;
 use Aws\SesV2\SesV2Client;
 use OpeTech\LaravelSes\Actions\Sns\GetConfigurationSetName;
 use OpeTech\LaravelSes\Models\LaravelSesBatch;
@@ -14,6 +15,13 @@ use Symfony\Component\Mailer\Transport\AbstractTransport;
 class LaravelSesTransport extends AbstractTransport
 {
     protected $batch = null;
+
+    /**
+     * The transmission options being used by the transport.
+     *
+     * @var array
+     */
+    protected $options = [];
 
     /**
      * Create a new SES transport instance.
@@ -62,15 +70,15 @@ class LaravelSesTransport extends AbstractTransport
 
         $messageId = $result->get('MessageId');
 
-        //TODO: throw exception if recepients is more than 1. We cannot send to more than one email
-        //at a time. Otherwise you won't be able to Identify which email has opened the email
-        //delivery/open/click rates etc won't be accurate either.
-        //You can override this if you want to. Maybe you want to send a report with multiple
-        //recipients. However, be aware that we will only take the first email for tracking purposes.
+        // TODO: throw exception if recepients is more than 1. We cannot send to more than one email
+        // at a time. Otherwise you won't be able to Identify which email has opened the email
+        // delivery/open/click rates etc won't be accurate either.
+        // You can override this if you want to. Maybe you want to send a report with multiple
+        // recipients. However, be aware that we will only take the first email for tracking purposes.
 
         foreach ($recepients as $recipient) {
 
-            //setup batch record if applicable
+            // setup batch record if applicable
             if ($this->batch) {
                 $batch = LaravelSesBatch::firstOrCreate([
                     'name' => $this->batch,
@@ -94,7 +102,7 @@ class LaravelSesTransport extends AbstractTransport
     /**
      * Get the Amazon SES client for the SesTransport instance.
      *
-     * @return \Aws\Ses\SesClient
+     * @return SesClient
      */
     public function ses()
     {
