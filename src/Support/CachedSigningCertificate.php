@@ -15,9 +15,14 @@ use Illuminate\Support\Facades\Cache;
  *
  * Safe to cache because MessageValidator::validateUrl() pins the URL to a
  * genuine sns.<region>.amazonaws.com host BEFORE this client is called: the
- * trust decision is never cached, only the fetched certificate body. Failed
- * fetches are returned uncached so the validator rejects the message and the
- * next request retries the download.
+ * trust decision is never cached, only the fetched certificate body.
+ *
+ * Nothing that fails to parse as a certificate is ever cached: a failed,
+ * empty or truncated download (openssl_get_publickey() — the same call the
+ * validator makes — rejects it) returns false uncached, so the validator
+ * rejects that one message and the next request retries the download. This
+ * matters: caching one bad body would 401 every notification for the full
+ * TTL, and SNS retries are finite.
  */
 class CachedSigningCertificate
 {
@@ -28,21 +33,22 @@ class CachedSigningCertificate
     {
         $seconds = (int) config('laravelses.sns_certificate_cache_seconds');
 
-        if ($seconds <= 0) {
-            return $this->fetch($certUrl);
-        }
-
         $key = 'laravel-ses:sns-certificate:'.sha1($certUrl);
 
-        $certificate = Cache::get($key);
-
-        if ($certificate !== null) {
-            return $certificate;
+        if ($seconds > 0 && ($cached = Cache::get($key)) !== null) {
+            return $cached;
         }
 
         $certificate = $this->fetch($certUrl);
 
-        if ($certificate !== false) {
+        if (! is_string($certificate)
+            || $certificate === ''
+            || openssl_get_publickey($certificate) === false
+        ) {
+            return false;
+        }
+
+        if ($seconds > 0) {
             Cache::put($key, $certificate, $seconds);
         }
 
@@ -54,6 +60,10 @@ class CachedSigningCertificate
      */
     protected function fetch(string $certUrl)
     {
-        return @file_get_contents($certUrl);
+        // The timeout stops a hung download holding a worker; a fetch cut off
+        // mid-body returns partial content, which the parse gate above refuses.
+        return @file_get_contents($certUrl, false, stream_context_create([
+            'http' => ['timeout' => 5],
+        ]));
     }
 }

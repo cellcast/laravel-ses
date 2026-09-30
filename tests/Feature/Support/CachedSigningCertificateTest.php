@@ -10,6 +10,16 @@ function partialCertificateClient(): CachedSigningCertificate
         ->shouldAllowMockingProtectedMethods();
 }
 
+function certificateA(): string
+{
+    return file_get_contents(__DIR__.'/../../Fixtures/certificate-a.pem');
+}
+
+function certificateB(): string
+{
+    return file_get_contents(__DIR__.'/../../Fixtures/certificate-b.pem');
+}
+
 beforeEach(function () {
     Cache::flush();
 });
@@ -18,41 +28,64 @@ test('the certificate is fetched once and served from cache afterwards', functio
     config(['laravelses.sns_certificate_cache_seconds' => 3600]);
 
     $client = partialCertificateClient();
-    $client->shouldReceive('fetch')->once()->andReturn('CERTIFICATE-BODY');
+    $client->shouldReceive('fetch')->once()->andReturn(certificateA());
 
-    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe('CERTIFICATE-BODY');
-    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe('CERTIFICATE-BODY');
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe(certificateA());
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe(certificateA());
 });
 
 test('different certificate urls are cached independently', function () {
     config(['laravelses.sns_certificate_cache_seconds' => 3600]);
 
     $client = partialCertificateClient();
-    $client->shouldReceive('fetch')->twice()->andReturn('CERT-A', 'CERT-B');
+    $client->shouldReceive('fetch')->twice()->andReturn(certificateA(), certificateB());
 
-    expect($client('https://sns.eu-west-2.amazonaws.com/a.pem'))->toBe('CERT-A');
-    expect($client('https://sns.eu-west-2.amazonaws.com/b.pem'))->toBe('CERT-B');
-    expect($client('https://sns.eu-west-2.amazonaws.com/a.pem'))->toBe('CERT-A');
+    expect($client('https://sns.eu-west-2.amazonaws.com/a.pem'))->toBe(certificateA());
+    expect($client('https://sns.eu-west-2.amazonaws.com/b.pem'))->toBe(certificateB());
+    expect($client('https://sns.eu-west-2.amazonaws.com/a.pem'))->toBe(certificateA());
 });
 
 test('a failed fetch is not cached and is retried on the next call', function () {
     config(['laravelses.sns_certificate_cache_seconds' => 3600]);
 
     $client = partialCertificateClient();
-    $client->shouldReceive('fetch')->twice()->andReturn(false, 'CERTIFICATE-BODY');
+    $client->shouldReceive('fetch')->twice()->andReturn(false, certificateA());
 
     expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBeFalse();
-    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe('CERTIFICATE-BODY');
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe(certificateA());
+});
+
+test('an empty download is rejected, never cached, and retried on the next call', function () {
+    config(['laravelses.sns_certificate_cache_seconds' => 3600]);
+
+    $client = partialCertificateClient();
+    $client->shouldReceive('fetch')->twice()->andReturn('', certificateA());
+
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBeFalse();
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe(certificateA());
+});
+
+test('a body that does not parse as a certificate is rejected and never cached', function () {
+    config(['laravelses.sns_certificate_cache_seconds' => 3600]);
+
+    $truncated = substr(certificateA(), 0, 200);
+
+    $client = partialCertificateClient();
+    $client->shouldReceive('fetch')->times(3)->andReturn('not a pem', $truncated, certificateA());
+
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBeFalse();
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBeFalse();
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe(certificateA());
 });
 
 test('a cache ttl of zero fetches on every call', function () {
     config(['laravelses.sns_certificate_cache_seconds' => 0]);
 
     $client = partialCertificateClient();
-    $client->shouldReceive('fetch')->twice()->andReturn('CERTIFICATE-BODY');
+    $client->shouldReceive('fetch')->twice()->andReturn(certificateA(), certificateA());
 
-    $client('https://sns.eu-west-2.amazonaws.com/cert.pem');
-    $client('https://sns.eu-west-2.amazonaws.com/cert.pem');
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe(certificateA());
+    expect($client('https://sns.eu-west-2.amazonaws.com/cert.pem'))->toBe(certificateA());
 });
 
 test('the package ships with a one day cache by default', function () {
