@@ -9,6 +9,14 @@ return [
     'aws_sns_validator' => env('SES_SNS_VALIDATOR', true),
 
     /**
+     * How long (seconds) to cache the SNS signing certificate the validator
+     * downloads. The default fetches it once a day instead of once per
+     * notification, which is what keeps the webhook fast under event bursts.
+     * Set to 0 to fetch on every request.
+     */
+    'sns_certificate_cache_seconds' => env('SES_SNS_CERT_CACHE_SECONDS', 86400),
+
+    /**
      * Prefixed added to your AWS resources. This is so you can have multiple SES configurations in the same AWS account.
      */
     'prefix' => 'laravel-ses',
