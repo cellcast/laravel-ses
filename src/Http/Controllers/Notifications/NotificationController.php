@@ -60,7 +60,7 @@ class NotificationController extends Controller
         }
 
         try {
-            (new MessageValidator(new CachedSigningCertificate))->validate(new Message($content));
+            (new MessageValidator(app(CachedSigningCertificate::class)))->validate(new Message($content));
         } catch (InvalidSnsMessageException $e) {
             abort(401, 'SNS message signature could not be verified.');
         }

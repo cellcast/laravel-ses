@@ -3,6 +3,7 @@
 namespace OpeTech\LaravelSes\Support;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Certificate client for Aws\Sns\MessageValidator that caches the signing
@@ -19,10 +20,10 @@ use Illuminate\Support\Facades\Cache;
  *
  * Nothing that fails to parse as a certificate is ever cached: a failed,
  * empty or truncated download (openssl_get_publickey() — the same call the
- * validator makes — rejects it) returns false uncached, so the validator
- * rejects that one message and the next request retries the download. This
- * matters: caching one bad body would 401 every notification for the full
- * TTL, and SNS retries are finite.
+ * validator makes — rejects it) returns false uncached and logs a warning,
+ * so the validator rejects that one message and the next request retries the
+ * download. This matters: caching one bad body would 401 every notification
+ * for the full TTL, and SNS retries are finite.
  */
 class CachedSigningCertificate
 {
@@ -45,6 +46,13 @@ class CachedSigningCertificate
             || $certificate === ''
             || openssl_get_publickey($certificate) === false
         ) {
+            Log::warning('laravel-ses: SNS signing certificate could not be downloaded; the notification will be rejected.', [
+                'url' => $certUrl,
+                'reason' => $certificate === false || ! is_string($certificate)
+                    ? 'download failed'
+                    : ($certificate === '' ? 'empty response' : 'body does not parse as a certificate'),
+            ]);
+
             return false;
         }
 
