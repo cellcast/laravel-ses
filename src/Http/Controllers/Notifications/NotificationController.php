@@ -15,6 +15,7 @@ use OpeTech\LaravelSes\Actions\SesEvents\PersistOpenNotification;
 use OpeTech\LaravelSes\Actions\SesEvents\PersistRejectNotification;
 use OpeTech\LaravelSes\Actions\Sns\ConfirmSubscription;
 use OpeTech\LaravelSes\Enums\SesEvents;
+use OpeTech\LaravelSes\Support\CachedSigningCertificate;
 
 class NotificationController extends Controller
 {
@@ -59,7 +60,7 @@ class NotificationController extends Controller
         }
 
         try {
-            (new MessageValidator)->validate(new Message($content));
+            (new MessageValidator(app(CachedSigningCertificate::class)))->validate(new Message($content));
         } catch (InvalidSnsMessageException $e) {
             abort(401, 'SNS message signature could not be verified.');
         }
